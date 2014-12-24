@@ -38,17 +38,11 @@ public class MemesProvider extends DocumentsProvider {
             Document.COLUMN_SIZE
     };
 
-    private static final int MAX_SEARCH_RESULTS = 20;
-    private static final int MAX_LAST_MODIFIED = 5;
-
     private static final String ROOT = "root";
     private static final String MIME_TYPE_IMAGE = "image/*";
 
-    private AssetManager mAssets;
-
     @Override
     public boolean onCreate() {
-        mAssets = getContext().getAssets();
         return true;
     }
 
@@ -60,7 +54,8 @@ public class MemesProvider extends DocumentsProvider {
         row.add(Root.COLUMN_SUMMARY, getContext().getString(R.string.app_name));
         row.add(Root.COLUMN_FLAGS,
                 Root.FLAG_LOCAL_ONLY |
-                Root.FLAG_SUPPORTS_RECENTS |
+                // TODO: expose some recents functionality
+                // Root.FLAG_SUPPORTS_RECENTS |
                 Root.FLAG_SUPPORTS_SEARCH);
         row.add(Root.COLUMN_TITLE, getContext().getString(R.string.app_name));
         // We're mirroring a filesystem so column IDs are relative paths and the root is ""
@@ -83,7 +78,19 @@ public class MemesProvider extends DocumentsProvider {
     @Override
     public Cursor queryChildDocuments(String parentDocumentId, String[] projection,
             String sortOrder) throws FileNotFoundException {
-        return null;
+        AssetManager assets = getContext().getAssets();
+        String[] children;
+        try {
+            children = assets.list(parentDocumentId);
+        } catch (IOException e) {
+            throw new FileNotFoundException(e.getMessage());
+        }
+
+        MatrixCursor result = new MatrixCursor(resolveDocumentProjection(projection));
+        for (String child : children) {
+            includeFile(result, child);
+        }
+        return result;
     }
 
     @Override
