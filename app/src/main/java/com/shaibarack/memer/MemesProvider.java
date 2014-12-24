@@ -1,6 +1,5 @@
 package com.shaibarack.memer;
 
-import android.content.res.AssetFileDescriptor;
 import android.content.res.AssetManager;
 import android.database.Cursor;
 import android.database.MatrixCursor;
@@ -12,7 +11,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 
-import static android.provider.DocumentsContract.*;
+import static android.provider.DocumentsContract.Document;
+import static android.provider.DocumentsContract.Root;
 
 /**
  * Storage Access Framework provider for memes.
@@ -63,7 +63,6 @@ public class MemesProvider extends DocumentsProvider {
         // The child MIME types are used to filter the roots and only present to the user roots
         // that contain the desired type somewhere in their file hierarchy.
         row.add(Root.COLUMN_MIME_TYPES, MIME_TYPE_IMAGE);
-        row.add(Root.COLUMN_ICON, R.drawable.ic_launcher);
         return result;
     }
 
@@ -96,7 +95,11 @@ public class MemesProvider extends DocumentsProvider {
     @Override
     public ParcelFileDescriptor openDocument(String documentId, String mode,
             CancellationSignal signal) throws FileNotFoundException {
-        return null;
+        try {
+            return getContext().getAssets().openFd(documentId).getParcelFileDescriptor();
+        } catch (IOException e) {
+            throw new FileNotFoundException(e.getMessage());
+        }
     }
 
     private String[] resolveRootProjection(String[] projection) {
