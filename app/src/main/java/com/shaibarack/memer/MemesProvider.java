@@ -11,7 +11,6 @@ import android.util.Log;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.Arrays;
 
 import static android.provider.DocumentsContract.Document;
 import static android.provider.DocumentsContract.Root;
@@ -85,10 +84,9 @@ public class MemesProvider extends DocumentsProvider {
             throw new FileNotFoundException(e.getMessage());
         }
 
-        Log.d("XXX", "children: " + Arrays.asList(children));
         MatrixCursor result = new MatrixCursor(resolveDocumentProjection(projection));
         for (String child : children) {
-            includeFile(result, child);
+            includeFile(result, parentDocumentId + File.separator + child);
         }
         return result;
     }
@@ -100,6 +98,7 @@ public class MemesProvider extends DocumentsProvider {
         try {
             return getContext().getAssets().openFd(documentId).getParcelFileDescriptor();
         } catch (IOException e) {
+            Log.e("XXX", "openDocument", e);
             throw new FileNotFoundException(e.getMessage());
         }
     }
@@ -116,7 +115,8 @@ public class MemesProvider extends DocumentsProvider {
         boolean isDir = isDirectory(docId);
         result.newRow()
                 .add(Document.COLUMN_DOCUMENT_ID, docId)
-                .add(Document.COLUMN_DISPLAY_NAME, getDisplayName(docId))
+                .add(Document.COLUMN_DISPLAY_NAME,
+                        isDir ? getDirDisplayName(docId) : getFileDisplayName(docId))
                 .add(Document.COLUMN_SIZE, null)
                 .add(Document.COLUMN_MIME_TYPE, isDir ? Document.MIME_TYPE_DIR : MIME_TYPE_IMAGE)
                 .add(Document.COLUMN_LAST_MODIFIED, null)
@@ -132,14 +132,21 @@ public class MemesProvider extends DocumentsProvider {
         return !docId.contains(".");
     }
 
-    /** Extracts simple name from docId, e.g. "cats/Grumpy Cat.jpg" is "Grumpy Cat". */
-    private static String getDisplayName(String docId) {
-        int lastSeparator = docId.lastIndexOf(File.separator);
-        if (lastSeparator == -1) {
-            return docId;
-        } else {
-            // Truncate filename extension
-            return docId.substring(lastSeparator, docId.length() - 4);
-        }
+    /**
+     * Extracts simple name from directory docId.
+     * Example: for "Memes/Cats" returns "Cats".
+     */
+    private String getDirDisplayName(String docId) {
+        int lastSeparator = Math.max(docId.lastIndexOf(File.separator), 0);
+        return docId.substring(lastSeparator + 1);
+    }
+
+    /**
+     * Extracts simple name from file docId.
+     * Example: for "Memes/Cats/Grumpy Cat.jpg" returns "Grumpy Cat".
+     */
+    private static String getFileDisplayName(String docId) {
+        int lastSeparator = Math.max(docId.lastIndexOf(File.separator), 0);
+        return docId.substring(lastSeparator + 1, docId.length() - 4);
     }
 }
