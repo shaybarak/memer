@@ -41,7 +41,7 @@ public class MemesProvider extends DocumentsProvider {
     };
 
     private static final String ROOT = "Memes";
-    private static final String MIME_TYPE_IMAGE = "image/*";
+    private static final String MIME_TYPE_IMAGE = "image/jpeg";
 
     @Override
     public boolean onCreate() {
