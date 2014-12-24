@@ -6,10 +6,12 @@ import android.database.MatrixCursor;
 import android.os.CancellationSignal;
 import android.os.ParcelFileDescriptor;
 import android.provider.DocumentsProvider;
+import android.util.Log;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.Arrays;
 
 import static android.provider.DocumentsContract.Document;
 import static android.provider.DocumentsContract.Root;
@@ -25,7 +27,6 @@ public class MemesProvider extends DocumentsProvider {
             Root.COLUMN_FLAGS,
             Root.COLUMN_ICON,
             Root.COLUMN_TITLE,
-            Root.COLUMN_SUMMARY,
             Root.COLUMN_DOCUMENT_ID,
     };
 
@@ -38,7 +39,7 @@ public class MemesProvider extends DocumentsProvider {
             Document.COLUMN_SIZE
     };
 
-    private static final String ROOT = "root";
+    private static final String ROOT = "Memes";
     private static final String MIME_TYPE_IMAGE = "image/*";
 
     @Override
@@ -48,27 +49,25 @@ public class MemesProvider extends DocumentsProvider {
 
     @Override
     public Cursor queryRoots(String[] projection) throws FileNotFoundException {
+        Log.d("XXX", "queryRoots");
         MatrixCursor result = new MatrixCursor(resolveRootProjection(projection));
-        MatrixCursor.RowBuilder row = result.newRow();
-        row.add(Root.COLUMN_ROOT_ID, ROOT);
-        row.add(Root.COLUMN_SUMMARY, getContext().getString(R.string.app_name));
-        row.add(Root.COLUMN_FLAGS,
-                Root.FLAG_LOCAL_ONLY |
-                // TODO: expose some recents functionality
-                // Root.FLAG_SUPPORTS_RECENTS |
-                Root.FLAG_SUPPORTS_SEARCH);
-        row.add(Root.COLUMN_TITLE, getContext().getString(R.string.app_name));
-        // We're mirroring a filesystem so column IDs are relative paths and the root is ""
-        row.add(Root.COLUMN_DOCUMENT_ID, "");
-        // The child MIME types are used to filter the roots and only present to the user roots
-        // that contain the desired type somewhere in their file hierarchy.
-        row.add(Root.COLUMN_MIME_TYPES, MIME_TYPE_IMAGE);
+        result.newRow()
+                .add(Root.COLUMN_ROOT_ID, ROOT)
+                .add(Root.COLUMN_TITLE, getContext().getString(R.string.app_name))
+                .add(Root.COLUMN_FLAGS, Root.FLAG_LOCAL_ONLY
+                        // | Root.FLAG_SUPPORTS_RECENTS
+                        // | Root.FLAG_SUPPORTS_SEARCH
+                        )
+                .add(Root.COLUMN_DOCUMENT_ID, ROOT)
+                .add(Root.COLUMN_MIME_TYPES, MIME_TYPE_IMAGE)
+                .add(Root.COLUMN_ICON, R.drawable.ic_launcher);
         return result;
     }
 
     @Override
     public Cursor queryDocument(String documentId, String[] projection)
             throws FileNotFoundException {
+        Log.d("XXX", "queryDocument " + documentId);
         MatrixCursor result = new MatrixCursor(resolveDocumentProjection(projection));
         includeFile(result, documentId);
         return result;
@@ -77,6 +76,7 @@ public class MemesProvider extends DocumentsProvider {
     @Override
     public Cursor queryChildDocuments(String parentDocumentId, String[] projection,
             String sortOrder) throws FileNotFoundException {
+        Log.d("XXX", "queryChildDocuments " + parentDocumentId);
         AssetManager assets = getContext().getAssets();
         String[] children;
         try {
@@ -85,6 +85,7 @@ public class MemesProvider extends DocumentsProvider {
             throw new FileNotFoundException(e.getMessage());
         }
 
+        Log.d("XXX", "children: " + Arrays.asList(children));
         MatrixCursor result = new MatrixCursor(resolveDocumentProjection(projection));
         for (String child : children) {
             includeFile(result, child);
@@ -95,6 +96,7 @@ public class MemesProvider extends DocumentsProvider {
     @Override
     public ParcelFileDescriptor openDocument(String documentId, String mode,
             CancellationSignal signal) throws FileNotFoundException {
+        Log.d("XXX", "openDocument " + documentId);
         try {
             return getContext().getAssets().openFd(documentId).getParcelFileDescriptor();
         } catch (IOException e) {
@@ -111,19 +113,15 @@ public class MemesProvider extends DocumentsProvider {
     }
 
     private void includeFile(MatrixCursor result, String docId) {
-        int flags = Document.FLAG_SUPPORTS_THUMBNAIL;
-        if (isDirectory(docId)) {
-            // We like grids. Grids have nicer thumbnails.
-            flags |= Document.FLAG_DIR_PREFERS_GRID;
-        }
-
-        MatrixCursor.RowBuilder row = result.newRow();
-        row.add(Document.COLUMN_DOCUMENT_ID, docId);
-        row.add(Document.COLUMN_DISPLAY_NAME, getDisplayName(docId));
-        row.add(Document.COLUMN_SIZE, null);
-        row.add(Document.COLUMN_MIME_TYPE, MIME_TYPE_IMAGE);
-        row.add(Document.COLUMN_LAST_MODIFIED, null);
-        row.add(Document.COLUMN_FLAGS, flags);
+        boolean isDir = isDirectory(docId);
+        result.newRow()
+                .add(Document.COLUMN_DOCUMENT_ID, docId)
+                .add(Document.COLUMN_DISPLAY_NAME, getDisplayName(docId))
+                .add(Document.COLUMN_SIZE, null)
+                .add(Document.COLUMN_MIME_TYPE, isDir ? Document.MIME_TYPE_DIR : MIME_TYPE_IMAGE)
+                .add(Document.COLUMN_LAST_MODIFIED, null)
+                .add(Document.COLUMN_FLAGS,
+                        isDir ? Document.FLAG_DIR_PREFERS_GRID : Document.FLAG_SUPPORTS_THUMBNAIL);
     }
 
     private static boolean isDirectory(String docId) {
@@ -136,6 +134,12 @@ public class MemesProvider extends DocumentsProvider {
 
     /** Extracts simple name from docId, e.g. "cats/Grumpy Cat.jpg" is "Grumpy Cat". */
     private static String getDisplayName(String docId) {
-        return docId.substring(docId.lastIndexOf(File.separator), docId.length() - 4);
+        int lastSeparator = docId.lastIndexOf(File.separator);
+        if (lastSeparator == -1) {
+            return docId;
+        } else {
+            // Truncate filename extension
+            return docId.substring(lastSeparator, docId.length() - 4);
+        }
     }
 }
