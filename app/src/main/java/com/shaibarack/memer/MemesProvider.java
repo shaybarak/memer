@@ -1,8 +1,10 @@
 package com.shaibarack.memer;
 
+import android.content.res.AssetFileDescriptor;
 import android.content.res.AssetManager;
 import android.database.Cursor;
 import android.database.MatrixCursor;
+import android.graphics.Point;
 import android.os.CancellationSignal;
 import android.os.ParcelFileDescriptor;
 import android.provider.DocumentsProvider;
@@ -89,6 +91,17 @@ public class MemesProvider extends DocumentsProvider {
             includeFile(result, parentDocumentId + File.separator + child);
         }
         return result;
+    }
+
+    @Override
+    public AssetFileDescriptor openDocumentThumbnail(String documentId, Point sizeHint,
+            CancellationSignal signal) throws FileNotFoundException {
+        try {
+            return getContext().getAssets().openFd(documentId);
+        } catch (IOException e) {
+            Log.e("XXX", "openDocumentThumbnail", e);
+            throw new FileNotFoundException(e.getMessage());
+        }
     }
 
     @Override
