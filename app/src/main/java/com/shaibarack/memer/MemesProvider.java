@@ -31,20 +31,21 @@ public class MemesProvider extends DocumentsProvider {
 
     private static final String[] DEFAULT_ROOT_PROJECTION = new String[]{
             Root.COLUMN_ROOT_ID,
-            Root.COLUMN_MIME_TYPES,
-            Root.COLUMN_FLAGS,
-            Root.COLUMN_ICON,
             Root.COLUMN_TITLE,
+            Root.COLUMN_FLAGS,
             Root.COLUMN_DOCUMENT_ID,
+            Root.COLUMN_MIME_TYPES,
+            Root.COLUMN_ICON,
     };
 
     private static final String[] DEFAULT_DOCUMENT_PROJECTION = new String[]{
             Document.COLUMN_DOCUMENT_ID,
-            Document.COLUMN_MIME_TYPE,
             Document.COLUMN_DISPLAY_NAME,
+            Document.COLUMN_SIZE,
+            Document.COLUMN_MIME_TYPE,
             Document.COLUMN_LAST_MODIFIED,
             Document.COLUMN_FLAGS,
-            Document.COLUMN_SIZE,
+            Document.COLUMN_ICON,
     };
 
     private static final String ROOT = "Memes";
@@ -190,7 +191,8 @@ public class MemesProvider extends DocumentsProvider {
                 .add(Document.COLUMN_SIZE, null)
                 .add(Document.COLUMN_MIME_TYPE, MIME_TYPE_IMAGE)
                 .add(Document.COLUMN_LAST_MODIFIED, getLastModified(docId))
-                .add(Document.COLUMN_FLAGS, Document.FLAG_SUPPORTS_THUMBNAIL);
+                .add(Document.COLUMN_FLAGS, Document.FLAG_SUPPORTS_THUMBNAIL)
+                .add(Document.COLUMN_ICON, R.drawable.ic_launcher);
     }
 
     private long getLastModified(String docId) {
