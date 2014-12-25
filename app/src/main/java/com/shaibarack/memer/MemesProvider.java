@@ -1,5 +1,6 @@
 package com.shaibarack.memer;
 
+import android.content.SharedPreferences;
 import android.content.res.AssetFileDescriptor;
 import android.content.res.AssetManager;
 import android.database.Cursor;
@@ -7,7 +8,9 @@ import android.database.MatrixCursor;
 import android.graphics.Point;
 import android.os.CancellationSignal;
 import android.os.ParcelFileDescriptor;
+import android.preference.PreferenceManager;
 import android.provider.DocumentsProvider;
+import android.text.TextUtils;
 import android.util.Log;
 
 import java.io.File;
@@ -15,7 +18,9 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Arrays;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Queue;
 
 import static android.provider.DocumentsContract.Document;
@@ -46,12 +51,16 @@ public class MemesProvider extends DocumentsProvider {
 
     private static final String ROOT = "Memes";
     private static final String MIME_TYPE_IMAGE = "image/jpeg";
+    private static final String RECENTS_KEY = "recents";
+    private static final int MAX_RECENTS = 64;
 
     AssetManager mAssets;
+    SharedPreferences mPrefs;
 
     @Override
     public boolean onCreate() {
         mAssets = getContext().getAssets();
+        mPrefs = PreferenceManager.getDefaultSharedPreferences(getContext());
         return true;
     }
 
@@ -63,9 +72,8 @@ public class MemesProvider extends DocumentsProvider {
                 .add(Root.COLUMN_ROOT_ID, ROOT)
                 .add(Root.COLUMN_TITLE, getContext().getString(R.string.app_name))
                 .add(Root.COLUMN_FLAGS, Root.FLAG_LOCAL_ONLY
-                        // | Root.FLAG_SUPPORTS_RECENTS
-                        | Root.FLAG_SUPPORTS_SEARCH
-                        )
+                        | Root.FLAG_SUPPORTS_RECENTS
+                        | Root.FLAG_SUPPORTS_SEARCH)
                 .add(Root.COLUMN_DOCUMENT_ID, ROOT)
                 .add(Root.COLUMN_MIME_TYPES, MIME_TYPE_IMAGE)
                 .add(Root.COLUMN_ICON, R.drawable.ic_launcher);
@@ -123,6 +131,8 @@ public class MemesProvider extends DocumentsProvider {
         } catch (IOException e) {
             Log.e("MemesProvider", "Exception in openDocument for " + documentId, e);
             throw new FileNotFoundException(e.getMessage());
+        } finally {
+            addToRecents(documentId);
         }
     }
 
@@ -137,7 +147,6 @@ public class MemesProvider extends DocumentsProvider {
         Log.d("MemesProvider", "querySearchDocuments " + rootId + ", " + query);
 
         query = query.toLowerCase();
-        // Create a cursor with the requested projection, or the default projection.
         MatrixCursor result = new MatrixCursor(resolveDocumentProjection(projection));
 
         // Iterate through all files in the file structure under the root.
@@ -170,6 +179,18 @@ public class MemesProvider extends DocumentsProvider {
         return result;
     }
 
+    @Override
+    public Cursor queryRecentDocuments(String rootId, String[] projection)
+            throws FileNotFoundException {
+        Log.d("MemesProvider", "queryRecentDocuments");
+
+        MatrixCursor result = new MatrixCursor(resolveDocumentProjection(projection));
+        for (String recent : getRecents()) {
+            includeFile(result, recent);
+        }
+        return result;
+    }
+
     private String[] resolveRootProjection(String[] projection) {
         return projection != null ? projection : DEFAULT_ROOT_PROJECTION;
     }
@@ -191,6 +212,23 @@ public class MemesProvider extends DocumentsProvider {
                         isDir ? Document.FLAG_DIR_PREFERS_GRID : Document.FLAG_SUPPORTS_THUMBNAIL);
     }
 
+    private List<String> getRecents() {
+        return Arrays.asList(mPrefs.getString(RECENTS_KEY, "").split(","));
+    }
+
+    private void addToRecents(String docId) {
+        List<String> recents = getRecents();
+        if (recents.remove(docId)) {
+            // Can add new element to front without checking capacity
+            recents.add(0, docId);
+        } else if (recents.size() >= MAX_RECENTS) {
+            recents.add(0, docId);
+            recents = recents.subList(0, MAX_RECENTS);
+        }
+        String toPref = TextUtils.join(",", recents);
+        mPrefs.edit().putString(RECENTS_KEY, toPref).commit();
+    }
+
     private static boolean isDirectory(String docId) {
         // AssetManager doesn't offer an easy way to determine if a path is an asset directory or an
         // asset file. This is in line with the general understanding that you're expected to know
@@ -203,7 +241,7 @@ public class MemesProvider extends DocumentsProvider {
      * Extracts simple name from directory docId.
      * Example: for "Memes/Cats" returns "Cats".
      */
-    private String getDirDisplayName(String docId) {
+    private static String getDirDisplayName(String docId) {
         int lastSeparator = Math.max(docId.lastIndexOf(File.separator), 0);
         return docId.substring(lastSeparator + 1);
     }
