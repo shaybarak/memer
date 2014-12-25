@@ -15,6 +15,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.LinkedList;
+import java.util.Queue;
 
 import static android.provider.DocumentsContract.Document;
 import static android.provider.DocumentsContract.Root;
@@ -45,8 +47,11 @@ public class MemesProvider extends DocumentsProvider {
     private static final String ROOT = "Memes";
     private static final String MIME_TYPE_IMAGE = "image/jpeg";
 
+    AssetManager mAssets;
+
     @Override
     public boolean onCreate() {
+        mAssets = getContext().getAssets();
         return true;
     }
 
@@ -59,7 +64,7 @@ public class MemesProvider extends DocumentsProvider {
                 .add(Root.COLUMN_TITLE, getContext().getString(R.string.app_name))
                 .add(Root.COLUMN_FLAGS, Root.FLAG_LOCAL_ONLY
                         // | Root.FLAG_SUPPORTS_RECENTS
-                        // | Root.FLAG_SUPPORTS_SEARCH
+                        | Root.FLAG_SUPPORTS_SEARCH
                         )
                 .add(Root.COLUMN_DOCUMENT_ID, ROOT)
                 .add(Root.COLUMN_MIME_TYPES, MIME_TYPE_IMAGE)
@@ -80,10 +85,9 @@ public class MemesProvider extends DocumentsProvider {
     public Cursor queryChildDocuments(String parentDocumentId, String[] projection,
             String sortOrder) throws FileNotFoundException {
         Log.d("MemesProvider", "queryChildDocuments " + parentDocumentId);
-        AssetManager assets = getContext().getAssets();
         String[] children;
         try {
-            children = assets.list(parentDocumentId);
+            children = mAssets.list(parentDocumentId);
         } catch (IOException e) {
             throw new FileNotFoundException(e.getMessage());
         }
@@ -113,14 +117,57 @@ public class MemesProvider extends DocumentsProvider {
 
         try {
             ParcelFileDescriptor[] pipe = ParcelFileDescriptor.createReliablePipe();
-            AssetManager assets = getContext().getAssets();
-            new TransferThread(assets.open(documentId),
+            new TransferThread(mAssets.open(documentId),
                     new ParcelFileDescriptor.AutoCloseOutputStream(pipe[1])).start();
             return pipe[0];
         } catch (IOException e) {
             Log.e("MemesProvider", "Exception in openDocument for " + documentId, e);
             throw new FileNotFoundException(e.getMessage());
         }
+    }
+
+    /**
+     * Searches for matching memes.
+     * A meme matches if its filename contains the search query.
+     * TODO: ranking.
+     */
+    @Override
+    public Cursor querySearchDocuments(String rootId, String query, String[] projection)
+            throws FileNotFoundException {
+        Log.d("MemesProvider", "querySearchDocuments " + rootId + ", " + query);
+
+        query = query.toLowerCase();
+        // Create a cursor with the requested projection, or the default projection.
+        MatrixCursor result = new MatrixCursor(resolveDocumentProjection(projection));
+
+        // Iterate through all files in the file structure under the root.
+        Queue<String> pending = new LinkedList<>();
+
+        // Start by adding the parent to the list of files to be processed
+        pending.add(rootId);
+
+        // Do while we still have unexamined files
+        while (!pending.isEmpty()) {
+            // Take a file from the list of unprocessed files
+            String docId = pending.poll();
+            if (isDirectory(docId)) {
+                // If it's a directory, add all its children to the unprocessed list
+                try {
+                    for (String child : mAssets.list(docId)) {
+                        pending.add(docId + File.separator + child);
+                    }
+                } catch (IOException e) {
+                    Log.e("MemesProvider",
+                            "querySearchDocuments failed while listing children", e);
+                }
+            } else {
+                // If it's a file and it matches, add it to the result cursor.
+                if (getFileDisplayName(docId).toLowerCase().contains(query)) {
+                    includeFile(result, docId);
+                }
+            }
+        }
+        return result;
     }
 
     private String[] resolveRootProjection(String[] projection) {
