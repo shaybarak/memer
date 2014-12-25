@@ -252,7 +252,7 @@ public class MemesProvider extends DocumentsProvider {
      */
     private static String getFileDisplayName(String docId) {
         int lastSeparator = Math.max(docId.lastIndexOf(File.separator), 0);
-        return docId.substring(lastSeparator + 1, docId.length() - 4);
+        return docId.substring(lastSeparator + 1, docId.indexOf("."));
     }
 
     private static class TransferThread extends Thread {
