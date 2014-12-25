@@ -44,7 +44,7 @@ public class MemesProvider extends DocumentsProvider {
             Document.COLUMN_DISPLAY_NAME,
             Document.COLUMN_LAST_MODIFIED,
             Document.COLUMN_FLAGS,
-            Document.COLUMN_SIZE
+            Document.COLUMN_SIZE,
     };
 
     private static final String ROOT = "Memes";
@@ -131,6 +131,7 @@ public class MemesProvider extends DocumentsProvider {
             throw new FileNotFoundException(e.getMessage());
         } finally {
             addToRecents(documentId);
+            setLastModified(documentId, System.currentTimeMillis());
         }
     }
 
@@ -188,8 +189,16 @@ public class MemesProvider extends DocumentsProvider {
                 .add(Document.COLUMN_DISPLAY_NAME, getFileDisplayName(docId))
                 .add(Document.COLUMN_SIZE, null)
                 .add(Document.COLUMN_MIME_TYPE, MIME_TYPE_IMAGE)
-                .add(Document.COLUMN_LAST_MODIFIED, null)
+                .add(Document.COLUMN_LAST_MODIFIED, getLastModified(docId))
                 .add(Document.COLUMN_FLAGS, Document.FLAG_SUPPORTS_THUMBNAIL);
+    }
+
+    private long getLastModified(String docId) {
+        return mPrefs.getLong(docId, 0);
+    }
+
+    private void setLastModified(String docId, long currentTimeMillis) {
+        mPrefs.edit().putLong(docId, currentTimeMillis);
     }
 
     private List<String> getRecents() {
