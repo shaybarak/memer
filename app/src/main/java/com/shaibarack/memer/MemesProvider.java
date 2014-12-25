@@ -13,6 +13,8 @@ import android.util.Log;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 import static android.provider.DocumentsContract.Document;
 import static android.provider.DocumentsContract.Root;
@@ -50,7 +52,7 @@ public class MemesProvider extends DocumentsProvider {
 
     @Override
     public Cursor queryRoots(String[] projection) throws FileNotFoundException {
-        Log.d("XXX", "queryRoots");
+        Log.d("MemesProvider", "queryRoots");
         MatrixCursor result = new MatrixCursor(resolveRootProjection(projection));
         result.newRow()
                 .add(Root.COLUMN_ROOT_ID, ROOT)
@@ -68,7 +70,7 @@ public class MemesProvider extends DocumentsProvider {
     @Override
     public Cursor queryDocument(String documentId, String[] projection)
             throws FileNotFoundException {
-        Log.d("XXX", "queryDocument " + documentId);
+        Log.d("MemesProvider", "queryDocument " + documentId);
         MatrixCursor result = new MatrixCursor(resolveDocumentProjection(projection));
         includeFile(result, documentId);
         return result;
@@ -77,7 +79,7 @@ public class MemesProvider extends DocumentsProvider {
     @Override
     public Cursor queryChildDocuments(String parentDocumentId, String[] projection,
             String sortOrder) throws FileNotFoundException {
-        Log.d("XXX", "queryChildDocuments " + parentDocumentId);
+        Log.d("MemesProvider", "queryChildDocuments " + parentDocumentId);
         AssetManager assets = getContext().getAssets();
         String[] children;
         try {
@@ -99,7 +101,7 @@ public class MemesProvider extends DocumentsProvider {
         try {
             return getContext().getAssets().openFd(documentId);
         } catch (IOException e) {
-            Log.e("XXX", "openDocumentThumbnail", e);
+            Log.e("MemesProvider", "Exception in openDocumentThumbnail for " + documentId, e);
             throw new FileNotFoundException(e.getMessage());
         }
     }
@@ -107,11 +109,16 @@ public class MemesProvider extends DocumentsProvider {
     @Override
     public ParcelFileDescriptor openDocument(String documentId, String mode,
             CancellationSignal signal) throws FileNotFoundException {
-        Log.d("XXX", "openDocument " + documentId);
+        Log.d("MemesProvider", "openDocument " + documentId);
+
         try {
-            return getContext().getAssets().openFd(documentId).getParcelFileDescriptor();
+            ParcelFileDescriptor[] pipe = ParcelFileDescriptor.createReliablePipe();
+            AssetManager assets = getContext().getAssets();
+            new TransferThread(assets.open(documentId),
+                    new ParcelFileDescriptor.AutoCloseOutputStream(pipe[1])).start();
+            return pipe[0];
         } catch (IOException e) {
-            Log.e("XXX", "openDocument", e);
+            Log.e("MemesProvider", "Exception in openDocument for " + documentId, e);
             throw new FileNotFoundException(e.getMessage());
         }
     }
@@ -161,5 +168,33 @@ public class MemesProvider extends DocumentsProvider {
     private static String getFileDisplayName(String docId) {
         int lastSeparator = Math.max(docId.lastIndexOf(File.separator), 0);
         return docId.substring(lastSeparator + 1, docId.length() - 4);
+    }
+
+    private static class TransferThread extends Thread {
+        private InputStream mIn;
+        private OutputStream mOut;
+
+        TransferThread(InputStream in, OutputStream out) {
+            mIn = in;
+            mOut = out;
+        }
+
+        @Override
+        public void run() {
+            byte[] buf = new byte[1024];
+            int len;
+
+            try {
+                while ((len = mIn.read(buf)) >= 0) {
+                    mOut.write(buf, 0, len);
+                }
+
+                mIn.close();
+                mOut.flush();
+                mOut.close();
+            } catch (IOException e) {
+                Log.e("MemesProvider", "Exception while transferring file", e);
+            }
+        }
     }
 }

@@ -8,7 +8,7 @@
 
         <provider
             android:name=".MemesProvider"
-            android:authorities="com.shaibarack.memer.storageprovider.documents"
+            android:authorities="com.shaibarack.memer"
             android:grantUriPermissions="true"
             android:exported="true"
             android:permission="android.permission.MANAGE_DOCUMENTS">
