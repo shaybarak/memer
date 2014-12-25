@@ -204,7 +204,7 @@ public class MemesProvider extends DocumentsProvider {
     }
 
     private void setLastModified(String docId, long currentTimeMillis) {
-        mPrefs.edit().putLong(docId, currentTimeMillis);
+        mPrefs.edit().putLong(docId, currentTimeMillis).commit();
     }
 
     private List<String> getRecents() {
