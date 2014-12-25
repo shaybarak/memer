@@ -18,7 +18,9 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static android.provider.DocumentsContract.Document;
@@ -187,12 +189,15 @@ public class MemesProvider extends DocumentsProvider {
     private void includeFile(MatrixCursor result, String docId) {
         result.newRow()
                 .add(Document.COLUMN_DOCUMENT_ID, docId)
-                .add(Document.COLUMN_DISPLAY_NAME, getFileDisplayName(docId))
+                .add(Document.COLUMN_DISPLAY_NAME, docId.equals(ROOT)
+                        ? ROOT
+                        : getFileDisplayName(docId))
                 .add(Document.COLUMN_SIZE, null)
                 .add(Document.COLUMN_MIME_TYPE, MIME_TYPE_IMAGE)
                 .add(Document.COLUMN_LAST_MODIFIED, getLastModified(docId))
-                .add(Document.COLUMN_FLAGS, Document.FLAG_SUPPORTS_THUMBNAIL)
-                .add(Document.COLUMN_ICON, R.drawable.ic_launcher);
+                .add(Document.COLUMN_FLAGS, docId.equals(ROOT)
+                        ? Document.FLAG_DIR_PREFERS_GRID
+                        : Document.FLAG_SUPPORTS_THUMBNAIL);
     }
 
     private long getLastModified(String docId) {
@@ -204,29 +209,36 @@ public class MemesProvider extends DocumentsProvider {
     }
 
     private List<String> getRecents() {
-        return Arrays.asList(mPrefs.getString(RECENTS_KEY, "").split(","));
+        String recents = mPrefs.getString(RECENTS_KEY, "");
+        if (recents.isEmpty()) {
+            return Collections.EMPTY_LIST;
+        } else {
+            return Arrays.asList(mPrefs.getString(RECENTS_KEY, "").split(","));
+        }
     }
 
     private void addToRecents(String docId) {
-        List<String> recents = getRecents();
-        if (recents.remove(docId)) {
-            // Can add new element to front without checking capacity
-            recents.add(0, docId);
-        } else if (recents.size() >= MAX_RECENTS) {
-            recents.add(0, docId);
-            recents = recents.subList(0, MAX_RECENTS);
-        }
-        String toPref = TextUtils.join(",", recents);
-        mPrefs.edit().putString(RECENTS_KEY, toPref).commit();
-    }
+        List<String> oldRecents = getRecents();
+        List<String> newRecents = new ArrayList<>(MAX_RECENTS);
 
-    /**
-     * Extracts simple name from directory docId.
-     * Example: for "Memes/Cats" returns "Cats".
-     */
-    private static String getDirDisplayName(String docId) {
-        int lastSeparator = Math.max(docId.lastIndexOf(File.separator), 0);
-        return docId.substring(lastSeparator + 1);
+        // Add to front
+        newRecents.add(docId);
+        int recentsCount = 1;
+        for (String oldRecent : oldRecents) {
+            // Don't add previous instance if encountered
+            if (!oldRecent.equals(docId)) {
+                newRecents.add(oldRecent);
+                recentsCount++;
+            }
+            // Don't overflow
+            if (recentsCount == MAX_RECENTS) {
+                break;
+            }
+        }
+
+        String toPref = TextUtils.join(",", newRecents);
+        mPrefs.edit().putString(RECENTS_KEY, toPref).commit();
+        Log.w("XXX", "Wrote recents: " + toPref);
     }
 
     /**
