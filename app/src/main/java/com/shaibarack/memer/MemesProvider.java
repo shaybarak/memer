@@ -199,8 +199,9 @@ public class MemesProvider extends DocumentsProvider {
                         : Document.FLAG_SUPPORTS_THUMBNAIL);
     }
 
-    private long getLastModified(String docId) {
-        return mPrefs.getLong(docId, 0);
+    private Long getLastModified(String docId) {
+        long lastModified = mPrefs.getLong(docId, 0);
+        return lastModified == 0 ? null : lastModified;
     }
 
     private void setLastModified(String docId, long currentTimeMillis) {
@@ -237,7 +238,6 @@ public class MemesProvider extends DocumentsProvider {
 
         String toPref = TextUtils.join(",", newRecents);
         mPrefs.edit().putString(RECENTS_KEY, toPref).commit();
-        Log.w("XXX", "Wrote recents: " + toPref);
     }
 
     /**
