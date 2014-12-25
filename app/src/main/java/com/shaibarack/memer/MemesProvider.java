@@ -50,7 +50,7 @@ public class MemesProvider extends DocumentsProvider {
     };
 
     private static final String ROOT = "Memes";
-    private static final String MIME_TYPE_IMAGE = "image/jpeg";
+    private static final String MIME_TYPE_IMAGE = "image/*";
     private static final String RECENTS_KEY = "recents";
     private static final int MAX_RECENTS = 64;
 
