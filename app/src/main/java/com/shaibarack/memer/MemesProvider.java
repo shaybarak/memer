@@ -47,7 +47,6 @@ public class MemesProvider extends DocumentsProvider {
             Document.COLUMN_MIME_TYPE,
             Document.COLUMN_LAST_MODIFIED,
             Document.COLUMN_FLAGS,
-            Document.COLUMN_ICON,
     };
 
     private static final String ROOT = "Memes";
