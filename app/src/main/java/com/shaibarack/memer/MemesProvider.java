@@ -186,12 +186,18 @@ public class MemesProvider extends DocumentsProvider {
     }
 
     private void includeFile(MatrixCursor result, String docId) {
+        Long size = null;
+        try {
+            size = mAssets.openFd(docId).getLength();
+        } catch (IOException e) {
+            Log.e("MemesProvider", "Failed to query size of " + docId);
+        }
         result.newRow()
                 .add(Document.COLUMN_DOCUMENT_ID, docId)
                 .add(Document.COLUMN_DISPLAY_NAME, docId.equals(ROOT)
                         ? ROOT
                         : getFileDisplayName(docId))
-                .add(Document.COLUMN_SIZE, null)
+                .add(Document.COLUMN_SIZE, size)
                 .add(Document.COLUMN_MIME_TYPE, MIME_TYPE_IMAGE)
                 .add(Document.COLUMN_LAST_MODIFIED, getLastModified(docId))
                 .add(Document.COLUMN_FLAGS, docId.equals(ROOT)
