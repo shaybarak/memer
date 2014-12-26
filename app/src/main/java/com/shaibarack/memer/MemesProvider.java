@@ -211,7 +211,7 @@ public class MemesProvider extends DocumentsProvider {
     }
 
     private void setLastModified(String docId, long currentTimeMillis) {
-        mPrefs.edit().putLong(docId, currentTimeMillis).commit();
+        mPrefs.edit().putLong(docId, currentTimeMillis).apply();
     }
 
     private List<String> getRecents() {
@@ -243,7 +243,7 @@ public class MemesProvider extends DocumentsProvider {
         }
 
         String toPref = TextUtils.join(",", newRecents);
-        mPrefs.edit().putString(RECENTS_KEY, toPref).commit();
+        mPrefs.edit().putString(RECENTS_KEY, toPref).apply();
     }
 
     /**
